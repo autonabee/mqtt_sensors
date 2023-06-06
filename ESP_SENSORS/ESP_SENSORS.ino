@@ -109,8 +109,21 @@ void loop() {
   if ((cfg.orientation) ||  (cfg.tilt)) {
     /* Get a new sensor event */
     bno.getEvent(&eventOrientation, Adafruit_BNO055::VECTOR_EULER);
+    imu::Quaternion quat = bno.getQuat();
+
     /* Print plotable ide arduino data on serial port */
     if (cfg.display) {
+      /* Quaternion */
+      Serial.print("qW: ");
+      Serial.print(quat.w(), 4);
+      Serial.print(" qX: ");
+      Serial.print(quat.y(), 4);
+      Serial.print(" qY: ");
+      Serial.print(quat.x(), 4);
+      Serial.print(" qZ: ");
+      Serial.print(quat.z(), 4);
+      Serial.println("");    
+      /* Euler */
       Serial.print("or_x:");
       Serial.print((float)eventOrientation.orientation.x);
       Serial.print(", or_y:");
