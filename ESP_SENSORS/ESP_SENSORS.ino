@@ -24,6 +24,8 @@ struct esp_config {
     bool tilt;
     /* Euler orientation */
     bool orientation;
+    /* Quaternion orientation */
+    bool quaternion;
     /* EMG sensor */
     bool emg;
     /* Buttons */
@@ -32,8 +34,8 @@ struct esp_config {
     bool display;
 };
 
-//struct esp_config cfg = {"fit_and_fun", "", "10.42.0.1","fit_and_fun", "", 100, true, false, false, false, false, true};
-struct esp_config cfg = {"honor5_roger", "", "192.168.43.78", "fit_and_fun", "_1", 100, false, false, true, false, false, true};
+//struct esp_config cfg = {"fit_and_fun", "", "10.42.0.1","fit_and_fun", "", 100, true, false, false, false, false, false, true};
+struct esp_config cfg = {"honor5_roger", "", "192.168.43.78", "fit_and_fun", "_1", 100, false, false, true, true, false, false, true};
 
 /* Hardware pin for definition and leds */
 const int buttonOnePin = 14;
@@ -45,14 +47,18 @@ const int emgPin = 36;
 Adafruit_BNO055 bno = Adafruit_BNO055(55, 0x28); 
 /* Mqtt string messages */
 #define MSG_BUFFER_SINGLE_SIZE (10)
-#define MSG_BUFFER_VECTOR_SIZE (30)
+#define MSG_BUFFER_VECTOR3_SIZE (30)
+#define MSG_BUFFER_VECTOR4_SIZE (40)
 char msg_single[MSG_BUFFER_SINGLE_SIZE];
-char msg_vector[MSG_BUFFER_VECTOR_SIZE];
+char msg_vector3[MSG_BUFFER_VECTOR3_SIZE];
+char msg_vector4[MSG_BUFFER_VECTOR4_SIZE];
 /* Mqtt string topics */
 #define TOPIC_SIZE (30)
 char topic_orientation[TOPIC_SIZE];
+char topic_quaternion[TOPIC_SIZE];
 char topic_tilt[TOPIC_SIZE];
 char topic_rot_speed[TOPIC_SIZE];
+char topic_emg[TOPIC_SIZE];
 char topic_button1[TOPIC_SIZE];
 char topic_button2[TOPIC_SIZE]; 
 /* Sensor variables initialisation */
@@ -71,9 +77,12 @@ void setup() {
   /* Mqtt init */
   client.setServer(cfg.mqtt_server, 1883); 
   
+  /* construct topics complete name */
   snprintf(topic_orientation, TOPIC_SIZE, "%s/orientation%s", cfg.topic_main, cfg.topic_suffix);
+  snprintf(topic_quaternion, TOPIC_SIZE, "%s/quaternion%s", cfg.topic_main, cfg.topic_suffix);
   snprintf(topic_tilt, TOPIC_SIZE, "%s/tilt%s", cfg.topic_main, cfg.topic_suffix);
   snprintf(topic_rot_speed, TOPIC_SIZE, "%s/rot_speed%s", cfg.topic_main, cfg.topic_suffix);
+  snprintf(topic_emg, TOPIC_SIZE, "%s/emg%s", cfg.topic_main, cfg.topic_suffix);
   snprintf(topic_button1, TOPIC_SIZE, "%s/button1%s", cfg.topic_main, cfg.topic_suffix);
   snprintf(topic_button2, TOPIC_SIZE, "%s/button2%s", cfg.topic_main, cfg.topic_suffix);
 
@@ -81,8 +90,7 @@ void setup() {
   if (!bno.begin())                                                             
   {                                                                             
     /* There was a problem detecting the BNO055 ... check your connections */   
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!"\
-);                                                                              
+    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");                                                                              
     while (1);                                                                  
   }       
 
@@ -106,36 +114,49 @@ void loop() {
   
   /* Get a new sensor event */
   sensors_event_t eventOrientation, eventGyro;
-  if ((cfg.orientation) ||  (cfg.tilt)) {
+  if ((cfg.orientation) ||  (cfg.quaternion) ||  (cfg.tilt) ) {
     /* Get a new sensor event */
     bno.getEvent(&eventOrientation, Adafruit_BNO055::VECTOR_EULER);
     imu::Quaternion quat = bno.getQuat();
 
     /* Print plotable ide arduino data on serial port */
     if (cfg.display) {
-      /* Quaternion */
-      Serial.print("qW: ");
-      Serial.print(quat.w(), 4);
-      Serial.print(" qX: ");
-      Serial.print(quat.y(), 4);
-      Serial.print(" qY: ");
-      Serial.print(quat.x(), 4);
-      Serial.print(" qZ: ");
-      Serial.print(quat.z(), 4);
-      Serial.println("");    
-      /* Euler */
-      Serial.print("or_x:");
-      Serial.print((float)eventOrientation.orientation.x);
-      Serial.print(", or_y:");
-      Serial.print((float)eventOrientation.orientation.y);
-      Serial.print(", or_z:");
-      Serial.print((float)eventOrientation.orientation.z);
-      Serial.println("");
+      if (cfg.quaternion) {
+        /* Quaternion */
+        Serial.print("qW: ");
+        Serial.print(quat.w(), 4);
+        Serial.print(" qX: ");
+        Serial.print(quat.x(), 4);
+        Serial.print(" qY: ");
+        Serial.print(quat.y(), 4);
+        Serial.print(" qZ: ");
+        Serial.print(quat.z(), 4);
+        Serial.println("");
+      }   
+      if (cfg.quaternion) { 
+        /* Euler */
+        Serial.print("or_x:");
+        Serial.print((float)eventOrientation.orientation.x);
+        Serial.print(", or_y:");
+        Serial.print((float)eventOrientation.orientation.y);
+        Serial.print(", or_z:");
+        Serial.print((float)eventOrientation.orientation.z);
+        Serial.println("");
+      }
+       if (cfg.tilt) { 
+        /* Tilt */
+        Serial.print("tilt:");
+        Serial.print((float)eventOrientation.orientation.y);
+      }
     }
     /* Creation and sending mqtt messages */
     if (cfg.orientation) {
-      snprintf(msg_vector, MSG_BUFFER_VECTOR_SIZE, "%6.2f %6.2f %6.2f", eventOrientation.orientation.x, eventOrientation.orientation.y, eventOrientation.orientation.z );
-      client.publish(topic_orientation, msg_vector);
+      snprintf(msg_vector3, MSG_BUFFER_VECTOR3_SIZE, "%6.2f %6.2f %6.2f", eventOrientation.orientation.x, eventOrientation.orientation.y, eventOrientation.orientation.z );
+      client.publish(topic_orientation,msg_vector3);
+    }
+     if (cfg.quaternion) {
+      snprintf(msg_vector4, MSG_BUFFER_VECTOR4_SIZE, "%2.6f %2.6f %2.6f %2.6f", quat.w(), quat.x(), quat.y(), quat.z() );
+      client.publish(topic_quaternion,msg_vector4);
     }
     if (cfg.tilt) {
       snprintf(msg_single, MSG_BUFFER_SINGLE_SIZE, "%6.2f", (float)eventOrientation.orientation.y);
