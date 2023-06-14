@@ -1,4 +1,3 @@
-
 // MQTT Broker
 #include "TinyMqtt.h"
 #include <string.h>
@@ -44,7 +43,7 @@ struct esp_config cfg = {"fit_and_fun_kids", "fitandfun", "192.168.4.1", "fit_an
 MqttBroker broker(PORT);
 MqttClient client(&broker);
 
-const int ledPin =  13; 
+/* Hardware pin for definition and leds */
 const int emgPin = 36;
 const int flexPin = 33;
 
@@ -213,7 +212,6 @@ void loop() {
       M5.Lcd.setCursor(0, 40);
       M5.Lcd.printf("flex:%d ----- %s", flexValue, (flexState == OPEN ? "OPEN" : "CLOSE"));
     }
-    
   }
   
   delay(cfg.delay);
