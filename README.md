@@ -55,3 +55,6 @@ Restart the service
 ```
 
 
+## License
+
+The software is under [Ceccil licence](./COPYING)
